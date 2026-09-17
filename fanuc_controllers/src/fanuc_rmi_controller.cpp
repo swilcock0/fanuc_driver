@@ -675,7 +675,7 @@ void FanucRMIController::AddLogicInstruction(const std::shared_ptr<typename T1::
 
 bool FanucRMIController::ControllerIsAvailable()
 {
-  const bool active = (this->get_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
+  const bool active = (this->get_lifecycle_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
   if (!active)
   {
     RCLCPP_ERROR(rclcpp::get_logger(kFRRMIController), "Controller state is not active.");
