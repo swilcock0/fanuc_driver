@@ -411,6 +411,8 @@ hardware_interface::CallbackReturn FanucHardwareInterface::on_activate(const rcl
   joint_targets_degrees_ = fanuc_client_->readJointAngles();
   joint_targets_.array() = M_PI / 180.0 * joint_targets_degrees_.array();
 
+  motion_seen_ = false;
+  motion_lost_s_ = 0.0;
   hw_active_.store(true);
 
   return CallbackReturn::SUCCESS;
@@ -722,6 +724,23 @@ hardware_interface::return_type FanucHardwareInterface::read(const rclcpp::Time&
     force_sensor_.moment_y = static_cast<double>(fanuc_client_->force_sensor().moment_y);
     force_sensor_.moment_z = static_cast<double>(fanuc_client_->force_sensor().moment_z);
     force_sensor_.fs_type = static_cast<double>(fanuc_client_->force_sensor().fs_type);
+
+    // Enabling the teach pendant (or an E-stop / alarm) aborts STREAM_MOTN on the controller but
+    // leaves the UDP stream up, so nothing errors and the JTC just refuses goals. Once the pendant
+    // is off and the E-stop released, report an error: on_error + hw_reconnect.py then redo
+    // configure -> activate, which restarts STREAM_MOTN. Not while the pendant is on, where every
+    // RMI connect attempt would fail and raise pendant alarms.
+    const bool motion_possible = robot_status_.motion_possible > 0.5;
+    const bool want_motion =
+        motion_command_type_.load() == MotionCommandType::Position && fanuc_client_->getDoMotnCtrl();
+    motion_seen_ = motion_seen_ || motion_possible;
+    motion_lost_s_ = (want_motion && motion_seen_ && !motion_possible) ? motion_lost_s_ + period.seconds() : 0.0;
+    if (motion_lost_s_ > 0.5 && robot_status_.tp_enabled < 0.5 && robot_status_.e_stopped < 0.5)
+    {
+      RCLCPP_WARN(rclcpp::get_logger(kFRHWInterface), "Stream Motion stopped on the controller (pendant "
+                                                      "takeover?); reporting error to reconnect.");
+      return hardware_interface::return_type::ERROR;
+    }
   }
   catch (const std::exception& e)
   {

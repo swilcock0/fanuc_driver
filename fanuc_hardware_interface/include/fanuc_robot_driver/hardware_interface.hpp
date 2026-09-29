@@ -103,6 +103,8 @@ private:
   };
   std::unique_ptr<fanuc_client::FanucClient> fanuc_client_;
   std::atomic<bool> hw_active_;
+  bool motion_seen_ = false;   // STREAM_MOTN reported running since activation
+  double motion_lost_s_ = 0.0;  // how long it has been stopped while position control wants it
   Eigen::VectorXd fr_joint_pos_;
   Eigen::VectorXd fr_prev_joint_pos_;
   Eigen::VectorXd fr_joint_vel_;
