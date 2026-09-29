@@ -424,6 +424,17 @@ hardware_interface::CallbackReturn FanucHardwareInterface::on_deactivate(const r
   return CallbackReturn::SUCCESS;
 }
 
+// A lost stream (cable pulled, pendant enabled) or a failed connect lands here. The lifecycle
+// default fails, which finalizes the component and needs a full relaunch; succeeding leaves it
+// unconfigured, so configure -> activate reconnects. Runs in the control loop, so no network
+// calls: on_configure resets the client before connecting.
+hardware_interface::CallbackReturn FanucHardwareInterface::on_error(const rclcpp_lifecycle::State& /*previous_state*/)
+{
+  RCLCPP_WARN(rclcpp::get_logger(kFRHWInterface), "Connection lost; hardware unconfigured, awaiting reconnect.");
+  hw_active_.store(false);
+  return CallbackReturn::SUCCESS;
+}
+
 hardware_interface::CallbackReturn FanucHardwareInterface::on_cleanup(const rclcpp_lifecycle::State& previous_state)
 {
   hw_active_.store(false);

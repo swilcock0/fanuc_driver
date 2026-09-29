@@ -888,6 +888,9 @@ std::string IOTypeToString(const fanuc_msgs::msg::IOType& type, const uint32_t i
 
 controller_interface::CallbackReturn FanucGPIOController::on_init()
 {
+  // Jazzy controller nodes no longer auto-declare parameter overrides, so GetFilePath() read "".
+  auto_declare<std::string>("gpio_config_file_package", "");
+  auto_declare<std::string>("gpio_config_file_path", "");
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
