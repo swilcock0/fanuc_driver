@@ -380,8 +380,11 @@ controller_interface::return_type ScaledJointTrajectoryController::update(const 
 
 double ScaledJointTrajectoryController::first_order_lag_filter(const double filter_input)
 {
-  // discrete time first order lag filter
-  folag_state_ = (1 - folag_h_ / folag_tau_) * folag_state_ + (folag_h_ / folag_tau_) * filter_input;
+  // discrete time first order lag filter. h is the last update's period; one stalled cycle
+  // (pendant takeover, reconnect) with h > tau would overshoot, and h > 2*tau diverge, so the
+  // step is clamped to 1 - at worst the output jumps straight to the slider value.
+  const double k = std::min(folag_h_ / folag_tau_, 1.0);
+  folag_state_ = (1 - k) * folag_state_ + k * filter_input;
   return folag_state_;
 }
 
